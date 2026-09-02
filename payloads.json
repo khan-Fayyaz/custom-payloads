@@ -12,9 +12,9 @@
     {
       "name": "kstuff-lite-drakmor",
       "filename": "kstuff.elf",
-      "url": "https://github.com/drakmor/kstuff-lite/releases/download/1.2-dr-test1/kstuff.elf",
+      "url": "https://github.com/drakmor/kstuff-lite/releases/download/1.2-dr-test2/kstuff.elf",
       "description": "ps4/ps5 applications enabler by drakmor",
-      "version": "1.2-dr-test1",
+      "version": "1.2-dr-test2",
       "source_repository": "https://github.com/drakmor/kstuff-lite"
     },
     {
