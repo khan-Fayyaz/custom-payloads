@@ -4,9 +4,9 @@
     {
       "name": "shadowmount-plus",
       "filename": "shadowmountplus.elf",
-      "url": "https://github.com/drakmor/ShadowMountPlus/releases/download/1.7alpha12/ShadowMountPlus_1.7alpha12.zip",
+      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/shadowmountplus.elf",
       "description": "automated background auto-mounter payload for ps5 games",
-      "version": "1.7alpha11",
+      "version": "1.7alpha12",
       "source_repository": "https://github.com/drakmor/ShadowMountPlus"
     },
     {
