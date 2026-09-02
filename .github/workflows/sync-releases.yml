@@ -2,87 +2,39 @@ name: Sync Upstream Payloads
 
 on:
   schedule:
-    - cron: '0 */6 * * *'  # Every 6 hours
-  workflow_dispatch:
+    # Check for new releases every 6 hours
+    - cron: '0 */6 * * *'
+  workflow_dispatch:  # Allow manual trigger
 
 jobs:
   sync-payloads:
     runs-on: ubuntu-latest
     permissions:
       contents: write
+    
     steps:
       - name: Checkout custom-payloads repo
         uses: actions/checkout@v4
 
-      - name: Install dependencies
-        run: sudo apt-get install -y jq
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.11'
 
-      - name: Fetch ShadowMountPlus latest release
-        id: shadowmount
+      - name: Install Python dependencies
         run: |
-          RELEASE=$(curl -s https://api.github.com/repos/drakmor/ShadowMountPlus/releases/latest)
-          VERSION=$(echo $RELEASE | jq -r '.tag_name // .name')
-          # Get the .elf asset filename and download URL
-          ASSET=$(echo $RELEASE | jq -r '.assets[] | select(.name | endswith(".elf")) | .name' | head -1)
-          DOWNLOAD_URL=$(echo $RELEASE | jq -r '.assets[] | select(.name | endswith(".elf")) | .browser_download_url' | head -1)
-          
-          if [ "$VERSION" != "null" ] && [ "$ASSET" != "null" ]; then
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "filename=$ASSET" >> $GITHUB_OUTPUT
-            echo "url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
-          fi
+          python -m pip install --upgrade pip
+          pip install requests
 
-      - name: Fetch kstuff-lite latest release
-        id: kstuff
-        run: |
-          RELEASE=$(curl -s https://api.github.com/repos/drakmor/kstuff-lite/releases/latest)
-          VERSION=$(echo $RELEASE | jq -r '.tag_name // .name')
-          ASSET=$(echo $RELEASE | jq -r '.assets[] | select(.name | endswith(".elf")) | .name' | head -1)
-          DOWNLOAD_URL=$(echo $RELEASE | jq -r '.assets[] | select(.name | endswith(".elf")) | .browser_download_url' | head -1)
-          
-          if [ "$VERSION" != "null" ] && [ "$ASSET" != "null" ]; then
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "filename=$ASSET" >> $GITHUB_OUTPUT
-            echo "url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Fetch onionHEN latest release
-        id: onion
-        run: |
-          RELEASE=$(curl -s https://api.github.com/repos/aydencharles/onionHEN/releases/latest)
-          VERSION=$(echo $RELEASE | jq -r '.tag_name // .name')
-          ASSET=$(echo $RELEASE | jq -r '.assets[] | select(.name | endswith(".elf")) | .name' | head -1)
-          DOWNLOAD_URL=$(echo $RELEASE | jq -r '.assets[] | select(.name | endswith(".elf")) | .browser_download_url' | head -1)
-          
-          if [ "$VERSION" != "null" ] && [ "$ASSET" != "null" ]; then
-            echo "version=$VERSION" >> $GITHUB_OUTPUT
-            echo "filename=$ASSET" >> $GITHUB_OUTPUT
-            echo "url=$DOWNLOAD_URL" >> $GITHUB_OUTPUT
-          fi
-
-      - name: Update payloads.json with new versions and URLs
-        run: |
-          CURRENT=$(cat payloads.json)
-          
-          # Update shadowmount-plus
-          UPDATED=$(echo "$CURRENT" | \
-            jq '.payloads[0].version = "${{ steps.shadowmount.outputs.version }}" | .payloads[0].filename = "${{ steps.shadowmount.outputs.filename }}" | .payloads[0].url = "${{ steps.shadowmount.outputs.url }}"')
-          
-          # Update kstuff-lite
-          UPDATED=$(echo "$UPDATED" | \
-            jq '.payloads[1].version = "${{ steps.kstuff.outputs.version }}" | .payloads[1].filename = "${{ steps.kstuff.outputs.filename }}" | .payloads[1].url = "${{ steps.kstuff.outputs.url }}"')
-          
-          # Update onion-hen
-          UPDATED=$(echo "$UPDATED" | \
-            jq '.payloads[2].version = "${{ steps.onion.outputs.version }}" | .payloads[2].filename = "${{ steps.onion.outputs.filename }}" | .payloads[2].url = "${{ steps.onion.outputs.url }}"')
-          
-          echo "$UPDATED" > payloads.json
+      - name: Run payload sync script
+        run: python .github/scripts/sync-payloads.py
 
       - name: Commit and push if changed
         run: |
           git config user.name "Release Bot"
           git config user.email "bot@github.com"
           git add payloads.json
+          
           if git diff --cached --quiet; then
             echo "No changes detected"
           else
