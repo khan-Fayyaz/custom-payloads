@@ -27,6 +27,8 @@ jobs:
           pip install requests
 
       - name: Run payload sync script
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/sync-payloads.py
 
       - name: Commit and push if changed

@@ -25,6 +25,28 @@ PAYLOAD_JSON_PATH = "payloads.json"
 # Support multiple payload extensions
 PAYLOAD_EXTENSIONS = [".elf", ".bin"]
 
+# GitHub API Token (from environment variable)
+GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
+
+
+def get_github_headers() -> dict:
+    """
+    Get request headers for GitHub API with authentication if available.
+    
+    Returns:
+        Dictionary of headers with optional authorization
+    """
+    headers = {"Accept": "application/vnd.github.v3+json"}
+    
+    if GITHUB_TOKEN:
+        headers["Authorization"] = f"token {GITHUB_TOKEN}"
+        print("✓ Using authenticated GitHub API (5000 requests/hour)")
+    else:
+        print("⚠️  Using unauthenticated GitHub API (60 requests/hour)")
+        print("   Set GITHUB_TOKEN environment variable for higher limits")
+    
+    return headers
+
 
 def find_payload_in_directory(directory: str) -> dict:
     """
@@ -93,19 +115,20 @@ def extract_zip_and_find_payload(zip_path: str) -> dict:
         return {}
 
 
-def download_file(url: str, save_path: str) -> bool:
+def download_file(url: str, save_path: str, headers: dict) -> bool:
     """
     Download a file from URL.
     
     Args:
         url: URL to download from
         save_path: Path to save the file
+        headers: Request headers (with potential auth token)
     
     Returns:
         True if successful, False otherwise
     """
     try:
-        response = requests.get(url, timeout=30)
+        response = requests.get(url, timeout=30, headers=headers)
         response.raise_for_status()
         
         with open(save_path, 'wb') as f:
@@ -114,23 +137,24 @@ def download_file(url: str, save_path: str) -> bool:
         return True
     except Exception as e:
         print(f"   ❌ Error downloading file: {e}")
-        return False
+        return {}
 
 
-def get_latest_release(repo_url: str) -> dict:
+def get_latest_release(repo_url: str, headers: dict) -> dict:
     """
     Fetch the latest release (including pre-releases) for a repository.
     Handles both direct payload files and ZIP archives containing payloads.
     
     Args:
         repo_url: GitHub repository in format "owner/repo"
+        headers: Request headers (with potential auth token)
     
     Returns:
         Dictionary with version, filename, and url, or empty dict if failed
     """
     try:
         api_url = f"https://api.github.com/repos/{repo_url}/releases"
-        response = requests.get(api_url, timeout=10)
+        response = requests.get(api_url, timeout=10, headers=headers)
         response.raise_for_status()
         
         releases = response.json()
@@ -184,7 +208,7 @@ def get_latest_release(repo_url: str) -> dict:
         temp_zip_path = os.path.join(tempfile.gettempdir(), zip_asset["name"])
         print(f"   ⬇️  Downloading ZIP file...")
         
-        if not download_file(zip_asset["browser_download_url"], temp_zip_path):
+        if not download_file(zip_asset["browser_download_url"], temp_zip_path, headers):
             return {}
         
         # Extract ZIP and find payload
@@ -205,6 +229,13 @@ def get_latest_release(repo_url: str) -> dict:
             "url": zip_asset["browser_download_url"]  # Return the ZIP URL
         }
     
+    except requests.exceptions.HTTPError as e:
+        if e.response.status_code == 403:
+            print(f"❌ Rate limit exceeded for {repo_url}")
+            print(f"   💡 Tip: Set GITHUB_TOKEN environment variable for higher limits")
+        else:
+            print(f"❌ Failed to fetch {repo_url}: HTTP {e.response.status_code}")
+        return {}
     except requests.exceptions.RequestException as e:
         print(f"❌ Failed to fetch {repo_url}: {e}")
         return {}
@@ -237,12 +268,13 @@ def save_payloads_json(data: dict, path: str) -> None:
         sys.exit(1)
 
 
-def update_payloads(payloads_data: dict) -> bool:
+def update_payloads(payloads_data: dict, headers: dict) -> bool:
     """
     Update payloads with the latest release information from upstream repos.
     
     Args:
         payloads_data: The parsed payloads.json data
+        headers: Request headers (with potential auth token)
     
     Returns:
         True if any changes were made, False otherwise
@@ -260,7 +292,7 @@ def update_payloads(payloads_data: dict) -> bool:
             continue
         
         print(f"\n📦 Fetching latest release for {repo}...")
-        release_info = get_latest_release(repo)
+        release_info = get_latest_release(repo, headers)
         
         if not release_info:
             print(f"⏭️  Skipping {repo}: no release info available")
@@ -294,6 +326,10 @@ def main():
     print("🚀 PS5 Payload Manager - Upstream Release Sync")
     print("=" * 70)
     
+    # Get GitHub headers with auth if available
+    print("\n🔐 Checking GitHub API authentication...")
+    headers = get_github_headers()
+    
     # Load current payloads.json
     print(f"\n📂 Loading {PAYLOAD_JSON_PATH}...")
     payloads_data = load_payloads_json(PAYLOAD_JSON_PATH)
@@ -308,7 +344,7 @@ def main():
     print("🔄 Checking upstream repositories for new releases...")
     print("=" * 70)
     
-    changes_made = update_payloads(payloads_data)
+    changes_made = update_payloads(payloads_data, headers)
     
     # Save updated payloads.json
     print("\n" + "=" * 70)
