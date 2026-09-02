@@ -3,7 +3,7 @@
 Sync upstream payload repositories and update payloads.json with latest releases.
 Supports both stable releases and pre-releases.
 Handles multiple asset extensions (.elf, .bin, etc.)
-Automatically extracts .zip files to find payload binaries.
+Automatically extracts .zip files and uploads extracted payloads to GitHub Pages.
 """
 
 import json
@@ -12,6 +12,8 @@ import sys
 import os
 import tempfile
 import zipfile
+import shutil
+import subprocess
 from pathlib import Path
 
 # Configuration
@@ -24,6 +26,8 @@ REPOS = [
 PAYLOAD_JSON_PATH = "payloads.json"
 # Support multiple payload extensions
 PAYLOAD_EXTENSIONS = [".elf", ".bin"]
+# Directory where extracted payloads will be stored for GitHub Pages
+PAYLOADS_DIR = "payloads"
 
 # GitHub API Token (from environment variable)
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
@@ -56,7 +60,7 @@ def find_payload_in_directory(directory: str) -> dict:
         directory: Path to search in
     
     Returns:
-        Dictionary with filename and relative path, or empty dict if not found
+        Dictionary with filename and full path, or empty dict if not found
     """
     try:
         for root, dirs, files in os.walk(directory):
@@ -137,13 +141,89 @@ def download_file(url: str, save_path: str, headers: dict) -> bool:
         return True
     except Exception as e:
         print(f"   ❌ Error downloading file: {e}")
-        return {}
+        return False
+
+
+def copy_payload_to_pages(source_path: str, filename: str) -> bool:
+    """
+    Copy extracted payload to GitHub Pages directory.
+    
+    Args:
+        source_path: Full path to the extracted payload
+        filename: Filename to use in GitHub Pages
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Ensure payloads directory exists
+        if not os.path.exists(PAYLOADS_DIR):
+            os.makedirs(PAYLOADS_DIR)
+            print(f"   📁 Created directory: {PAYLOADS_DIR}")
+        
+        # Copy file to payloads directory
+        dest_path = os.path.join(PAYLOADS_DIR, filename)
+        shutil.copy2(source_path, dest_path)
+        print(f"   ✓ Copied to: {dest_path}")
+        
+        return True
+    except Exception as e:
+        print(f"   ❌ Error copying payload: {e}")
+        return False
+
+
+def git_commit_and_push(filename: str) -> bool:
+    """
+    Commit and push the new payload file to Git.
+    
+    Args:
+        filename: Name of the file that was added
+    
+    Returns:
+        True if successful, False otherwise
+    """
+    try:
+        # Stage the file
+        subprocess.run(["git", "add", os.path.join(PAYLOADS_DIR, filename)], 
+                      check=True, capture_output=True)
+        
+        # Check if there are changes to commit
+        result = subprocess.run(["git", "diff", "--cached", "--quiet"], 
+                               capture_output=True)
+        
+        if result.returncode == 0:
+            print(f"   ℹ️  No changes to commit for {filename}")
+            return True
+        
+        # Configure git if not already configured
+        subprocess.run(["git", "config", "user.name", "Release Bot"], 
+                      capture_output=True)
+        subprocess.run(["git", "config", "user.email", "bot@github.com"], 
+                      capture_output=True)
+        
+        # Commit
+        subprocess.run(["git", "commit", "-m", f"chore: add extracted payload {filename}"],
+                      check=True, capture_output=True)
+        
+        # Push
+        subprocess.run(["git", "push"], check=True, capture_output=True)
+        
+        print(f"   ✅ Committed and pushed: {filename}")
+        return True
+    
+    except subprocess.CalledProcessError as e:
+        print(f"   ❌ Git error: {e}")
+        return False
+    except Exception as e:
+        print(f"   ❌ Error in git operations: {e}")
+        return False
 
 
 def get_latest_release(repo_url: str, headers: dict) -> dict:
     """
     Fetch the latest release (including pre-releases) for a repository.
     Handles both direct payload files and ZIP archives containing payloads.
+    For ZIP files, extracts and uploads to GitHub Pages.
     
     Args:
         repo_url: GitHub repository in format "owner/repo"
@@ -169,7 +249,7 @@ def get_latest_release(repo_url: str, headers: dict) -> dict:
         
         print(f"   Version: {version}")
         
-        # First, try to find a direct payload asset (.elf, .bin)
+        # PRIORITY 1: Try to find a direct payload asset (.elf, .bin)
         payload_asset = None
         for asset in latest_release.get("assets", []):
             asset_name = asset["name"]
@@ -182,7 +262,7 @@ def get_latest_release(repo_url: str, headers: dict) -> dict:
             if payload_asset:
                 break
         
-        # If direct payload found, return it
+        # If direct payload found, return it immediately
         if payload_asset:
             return {
                 "version": version,
@@ -190,7 +270,7 @@ def get_latest_release(repo_url: str, headers: dict) -> dict:
                 "url": payload_asset["browser_download_url"]
             }
         
-        # If no direct payload, look for ZIP file
+        # PRIORITY 2: Look for ZIP file
         print(f"   ℹ️  No direct payload found, searching for ZIP archives...")
         zip_asset = None
         for asset in latest_release.get("assets", []):
@@ -214,20 +294,51 @@ def get_latest_release(repo_url: str, headers: dict) -> dict:
         # Extract ZIP and find payload
         payload_info = extract_zip_and_find_payload(temp_zip_path)
         
-        # Clean up temporary ZIP
-        try:
-            os.remove(temp_zip_path)
-        except:
-            pass
-        
         if not payload_info:
+            # Clean up temporary ZIP
+            try:
+                os.remove(temp_zip_path)
+            except:
+                pass
             return {}
         
-        return {
-            "version": version,
-            "filename": payload_info["filename"],
-            "url": zip_asset["browser_download_url"]  # Return the ZIP URL
-        }
+        # Copy extracted payload to GitHub Pages directory
+        print(f"   📤 Uploading extracted payload to GitHub Pages...")
+        extracted_filename = payload_info["filename"]
+        
+        if copy_payload_to_pages(payload_info["full_path"], extracted_filename):
+            # Commit and push to Git
+            if git_commit_and_push(extracted_filename):
+                # Clean up temporary ZIP
+                try:
+                    os.remove(temp_zip_path)
+                except:
+                    pass
+                
+                # Return the GitHub Pages URL
+                github_pages_url = f"https://khan-fayyaz.github.io/custom-payloads/payloads/{extracted_filename}"
+                
+                return {
+                    "version": version,
+                    "filename": extracted_filename,
+                    "url": github_pages_url
+                }
+            else:
+                print(f"   ⚠️  Failed to commit payload to Git")
+                # Clean up temporary ZIP
+                try:
+                    os.remove(temp_zip_path)
+                except:
+                    pass
+                return {}
+        else:
+            print(f"   ⚠️  Failed to copy payload to GitHub Pages")
+            # Clean up temporary ZIP
+            try:
+                os.remove(temp_zip_path)
+            except:
+                pass
+            return {}
     
     except requests.exceptions.HTTPError as e:
         if e.response.status_code == 403:
@@ -338,6 +449,7 @@ def main():
     # Display supported extensions
     supported_exts = ", ".join(PAYLOAD_EXTENSIONS)
     print(f"✓ Supported asset extensions: {supported_exts} (or within .zip files)")
+    print(f"✓ Extracted payloads will be stored in: {PAYLOADS_DIR}/")
     
     # Update payloads with latest releases
     print("\n" + "=" * 70)

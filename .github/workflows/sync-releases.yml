@@ -2,16 +2,15 @@ name: Sync Upstream Payloads
 
 on:
   schedule:
-    # Check for new releases every 6 hours
     - cron: '0 */6 * * *'
-  workflow_dispatch:  # Allow manual trigger
+  workflow_dispatch:
 
 jobs:
   sync-payloads:
     runs-on: ubuntu-latest
     permissions:
       contents: write
-    
+
     steps:
       - name: Checkout custom-payloads repo
         uses: actions/checkout@v4
@@ -26,19 +25,22 @@ jobs:
           python -m pip install --upgrade pip
           pip install requests
 
+      - name: Configure Git
+        run: |
+          git config user.name "Release Bot"
+          git config user.email "bot@github.com"
+
       - name: Run payload sync script
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python .github/scripts/sync-payloads.py
 
-      - name: Commit and push if changed
+      - name: Commit and push payloads.json if changed
         run: |
-          git config user.name "Release Bot"
-          git config user.email "bot@github.com"
           git add payloads.json
           
           if git diff --cached --quiet; then
-            echo "No changes detected"
+            echo "No changes to payloads.json"
           else
             git commit -m "chore: sync upstream payload releases"
             git push
