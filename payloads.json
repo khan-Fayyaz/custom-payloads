@@ -24,6 +24,14 @@
       "description": "Yet another HEN enabler for jailbroken PS5",
       "version": "v0.0.12",
       "source_repository": "https://github.com/aydencharles/onionHEN"
+    },
+		{
+      "name": "np-fake-signin",
+      "filename": "np-fake-signin.elf",
+      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/np-fake-signin.elf",
+      "description": "Sets PSN state to signed in on PS5",
+      "version": "1.1",
+      "source_repository": "https://github.com/khan-Fayyaz/custom-payloads"
     }
   ]
 }
