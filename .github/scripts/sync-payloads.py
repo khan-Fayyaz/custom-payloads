@@ -33,6 +33,13 @@ PAYLOADS_DIR = "payloads"
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 
+def clean_up_directory(path: str):
+    try:
+        shutil.rmtree(path, ignore_errors=True)
+    except Exception as e:
+        print(f"Cleanup failed: {e}")
+
+
 def get_github_headers() -> dict:
     """
     Get request headers for GitHub API with authentication if available.
@@ -101,7 +108,12 @@ def extract_zip_and_find_payload(zip_path: str) -> dict:
         payload_info = find_payload_in_directory(temp_dir)
         
         if payload_info:
-            return payload_info
+            # return payload_info
+            return {
+                "filename": payload_info["filename"],
+                "full_path": payload_info["full_path"],
+                "temp_extracted_files_path": temp_dir
+						}
         else:
             return {}
     
@@ -249,7 +261,8 @@ def process_zip_payload(repo_url: str, release_info: dict, headers: dict) -> dic
             "version": version,
             "type": "zip",
             "filename": payload_info["filename"],
-            "extracted_path": payload_info["full_path"]
+            "extracted_path": payload_info["full_path"],
+            "temp_extracted_files_path": payload_info["temp_extracted_files_path"]
         }
     
     except Exception as e:
@@ -466,12 +479,19 @@ def main():
             print(f"   📤 Uploading to GitHub Pages...")
             if not copy_payload_to_pages(extracted_path, filename):
                 print(f"   ❌ Failed to copy payload, skipping this update")
+                # Clean up temporary zip files extracted directory
+                clean_up_directory(processed["temp_extracted_files_path"])
                 continue
-            
+
             # Commit and push
             if not git_commit_and_push(filename):
                 print(f"   ❌ Failed to commit, skipping this update")
+                # Clean up temporary zip files extracted directory
+                clean_up_directory(processed["temp_extracted_files_path"])
                 continue
+
+						# Clean up temporary zip files extracted directory
+            clean_up_directory(processed["temp_extracted_files_path"])
             
             # Update payloads.json
             github_pages_url = f"https://khan-fayyaz.github.io/custom-payloads/payloads/{filename}"
@@ -479,7 +499,7 @@ def main():
             payloads[i]["filename"] = filename
             payloads[i]["url"] = github_pages_url
             print(f"   ✅ Updated: {filename}")
-    
+		
     # ==========================================
     # PHASE 3: SAVE CHANGES
     # ==========================================
