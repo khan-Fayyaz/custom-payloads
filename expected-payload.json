@@ -1,0 +1,15 @@
+{
+	"name": "my custom payloads",
+	"payloads": [
+		{
+			"name": "ps5upload",
+			"filename": "ps5upload_v5.17.1.elf",
+			"url": "https://github.com/itsPLK/ps5-payloads-mirror/releases/download/payloads-mirror/ps5upload_v5.17.1.elf",
+			"source": "https://github.com/phantomptr/ps5upload/releases",
+			"source_direct": "https://github.com/phantomptr/ps5upload/releases/download/v5.17.1/ps5upload-5.17.1.elf",
+			"description": "Fast, reliable transfers from your computer to your PS5 (requires PC app)",
+			"last_update": "2026-09-07",
+			"version": "v5.17.1"
+		}
+	]
+}
