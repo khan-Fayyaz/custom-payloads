@@ -33,6 +33,26 @@ PAYLOADS_DIR = "payloads"
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 
+def cleanup_file(file: str) -> None:
+	try:
+		if os.path.exists(file):
+				if os.path.isfile(file):
+						os.remove(file)
+	except Exception as e:
+		print(f"Cleanup failed: {e}")
+
+def cleanup_file_and_dir(file: str, directory: str | None) -> None:
+	try:
+			if os.path.exists(file):
+					if os.path.isfile(file):
+							os.remove(file)
+			if directory:
+					if os.path.exists(directory):
+							if os.path.isdir(directory):
+									shutil.rmtree(directory, ignore_errors=True)
+	except Exception as e:
+			print(f"Cleanup failed: {e}")
+
 def get_github_headers() -> dict:
 		"""
 		Get request headers for GitHub API with authentication if available.
@@ -192,6 +212,7 @@ def process_zip_payload(repo_url: str, release_info: dict, headers: dict) -> dic
 				
 				if not download_file(zip_url, temp_zip_path, headers):
 						print(f"   ❌ Failed to download ZIP")
+						cleanup_file(temp_zip_path)
 						return {}
 				
 				# Extract and find payload
@@ -217,28 +238,32 @@ def process_zip_payload(repo_url: str, release_info: dict, headers: dict) -> dic
 				
 				except zipfile.BadZipFile:
 						print(f"   ❌ BadZipFile exception occured while extracting zip")
+						# Clean up temporary Zip file and extracted Zip files
+						cleanup_file_and_dir(temp_zip_path, temp_extracted_zip_files_dir)
 						return {}
 				except Exception as e:
 						print(f"   ❌ exception occured while extracting zip: {e}")
+						# Clean up temporary Zip file and extracted Zip files
+						cleanup_file_and_dir(temp_zip_path, temp_extracted_zip_files_dir)
 						return {}
 
 				# Copy to GitHub Pages
 				print(f"   📤 Uploading to GitHub Pages...")
 				if not copy_payload_to_pages(temp_extracted_zip_files_dir, payload_filename):
 						print(f"   ❌ Failed to copy payload, skipping this update")
+						# Clean up temporary Zip file and extracted Zip files
+						cleanup_file_and_dir(temp_zip_path, temp_extracted_zip_files_dir)
 						return {}
 
 				# Commit and push
 				if not git_commit_and_push(payload_filename):
 						print(f"   ❌ Failed to commit, skipping this update")
+						# Clean up temporary Zip file and extracted Zip files
+						cleanup_file_and_dir(temp_zip_path, temp_extracted_zip_files_dir)
 						return {}
 				
 				# Clean up temporary Zip file and extracted Zip files
-				try:
-						os.remove(temp_zip_path)
-						shutil.rmtree(temp_extracted_zip_files_dir, ignore_errors=True)
-				except Exception as e:
-						print(f"Cleanup failed: {e}")
+				cleanup_file_and_dir(temp_zip_path, temp_extracted_zip_files_dir)
 				
 				print(f"   ✅ Found payload: {payload_filename}")
 				return {
