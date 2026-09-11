@@ -20,9 +20,9 @@
     {
       "name": "onion-hen",
       "filename": "OnionHEN.elf",
-      "url": "https://github.com/aydencharles/onionHEN/releases/download/v0.0.12/OnionHEN.elf",
+      "url": "https://github.com/aydencharles/onionHEN/releases/download/v0.0.13/OnionHEN.elf",
       "description": "Yet another HEN enabler for jailbroken PS5",
-      "version": "v0.0.12",
+      "version": "v0.0.13",
       "source_repository": "https://github.com/aydencharles/onionHEN"
     }
   ]
