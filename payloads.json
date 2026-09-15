@@ -5,25 +5,31 @@
       "name": "shadowmount-plus",
       "filename": "shadowmountplus.elf",
       "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/shadowmountplus.elf",
+			"source": "https://github.com/drakmor/ShadowMountPlus/releases",
+			"source_direct": "",
       "description": "automated background auto-mounter payload for ps5 games",
-      "version": "1.7alpha13fix1",
-      "source_repository": "https://github.com/drakmor/ShadowMountPlus"
+			"last_update": "",
+      "version": "1.7alpha12"
     },
     {
       "name": "kstuff-lite-drakmor",
       "filename": "kstuff.elf",
       "url": "https://github.com/drakmor/kstuff-lite/releases/download/1.2-dr-test2/kstuff.elf",
+			"source": "https://github.com/drakmor/kstuff-lite/releases",
+			"source_direct": "",
       "description": "ps4/ps5 applications enabler by drakmor",
-      "version": "1.2-dr-test2",
-      "source_repository": "https://github.com/drakmor/kstuff-lite"
+			"last_update": "",
+      "version": "1.2-dr-test1"
     },
     {
       "name": "onion-hen",
       "filename": "OnionHEN.elf",
-      "url": "https://github.com/aydencharles/onionHEN/releases/download/v0.0.13/OnionHEN.elf",
+      "url": "https://github.com/aydencharles/onionHEN/releases/download/v0.0.12/OnionHEN.elf",
+			"source": "https://github.com/aydencharles/onionHEN/releases",
+			"source_direct": "",
       "description": "Yet another HEN enabler for jailbroken PS5",
-      "version": "v0.0.13",
-      "source_repository": "https://github.com/aydencharles/onionHEN"
+			"last_update": "",
+      "version": "v0.0.11"
     }
   ]
 }

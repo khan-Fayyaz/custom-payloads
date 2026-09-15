@@ -33,17 +33,19 @@ PAYLOADS_DIR = "payloads"
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 
-def cleanup_file_or_dir(path: str | None) -> None:
+def cleanup_file_or_dir(path: str | Path | None) -> None:
 		if path:
-				pathObj = Path(path)
+				if not isinstance(path, Path):		
+						path = Path(path)
 				try:
-						if pathObj.exists():
-								if pathObj.is_file():
-										os.remove(pathObj)
-								elif pathObj.is_dir():
-										shutil.rmtree(pathObj)
+						if path.exists():
+								if path.is_file():
+										os.remove(path)
+								elif path.is_dir():
+										shutil.rmtree(path)
 				except Exception as e:
 						print(f"Cleanup failed: {e}")
+
 
 def get_github_headers() -> dict:
 		"""
@@ -75,13 +77,14 @@ def find_payload_in_directory(directory: str) -> dict:
 				Dictionary with filename and full path, or empty dict if not found
 		"""
 		try:
-				for root, dirs, files in os.walk(directory):
-						for file in files:
-								for ext in PAYLOAD_EXTENSIONS:
-										if file.endswith(ext):
-												return {
-														"filename": file
-												}
+				dir = Path(directory)
+				for file in dir.rglob("*"):
+						for ext in PAYLOAD_EXTENSIONS:
+								if file.name.endswith(ext):
+										return {
+												"filename": file.name,
+												"file_path": file
+										}
 		except Exception as e:
 				print(f"   ❌ Error searching directory {directory}: {e}")
 		
@@ -112,21 +115,20 @@ def download_file(url: str, save_path: str, headers: dict) -> bool:
 				return False
 
 
-def fetch_release_info(repo_url: str, headers: dict) -> dict:
+def fetch_release_info(repo_release_url: str, headers: dict) -> dict:
 		"""
 		Fetch release information (metadata only, no downloads).
 		Returns version, filename, and whether it's a direct file or ZIP.
 		
 		Args:
-				repo_url: GitHub repository in format "owner/repo"
+				repo_release_url: GitHub repo releases url
 				headers: Request headers (with potential auth token)
 		
 		Returns:
 				Dictionary with release info, or empty dict if failed
 		"""
 		try:
-				api_url = f"https://api.github.com/repos/{repo_url}/releases"
-				response = requests.get(api_url, timeout=10, headers=headers)
+				response = requests.get(repo_release_url, timeout=10, headers=headers)
 				response.raise_for_status()
 				
 				releases = response.json()
@@ -140,15 +142,14 @@ def fetch_release_info(repo_url: str, headers: dict) -> dict:
 				
 				# PRIORITY 1: Try to find a direct payload asset (.elf, .bin)
 				for asset in latest_release.get("assets", []):
-						asset_name = asset["name"]
 						for ext in PAYLOAD_EXTENSIONS:
-								if asset_name.endswith(ext):
+								if asset["name"].endswith(ext):
 										return {
 												"version": version,
 												"type": "direct",
-												"filename": asset_name,
+												"filename": asset["name"],
 												"url": asset["browser_download_url"],
-												"asset_data": asset
+												"release_date": latest_release["published_at"][:10]
 										}
 				
 				# PRIORITY 2: Look for ZIP file
@@ -159,7 +160,7 @@ def fetch_release_info(repo_url: str, headers: dict) -> dict:
 										"type": "zip",
 										"zip_filename": asset["name"],
 										"zip_url": asset["browser_download_url"],
-										"asset_data": asset
+										"release_date": latest_release["published_at"][:10]
 								}
 				
 				# No suitable asset found
@@ -167,120 +168,24 @@ def fetch_release_info(repo_url: str, headers: dict) -> dict:
 		
 		except requests.exceptions.HTTPError as e:
 				if e.response.status_code == 403:
-						print(f"   ❌ Rate limit exceeded for {repo_url}")
+						print(f"   ❌ Rate limit exceeded for {repo_release_url}")
 				else:
-						print(f"   ❌ Failed to fetch {repo_url}: HTTP {e.response.status_code}")
+						print(f"   ❌ Failed to fetch {repo_release_url}: HTTP {e.response.status_code}")
 				return {}
 		except requests.exceptions.RequestException as e:
-				print(f"   ❌ Failed to fetch {repo_url}: {e}")
+				print(f"   ❌ Failed to fetch {repo_release_url}: {e}")
 				return {}
 		except (KeyError, IndexError) as e:
-				print(f"   ❌ Error parsing release data for {repo_url}: {e}")
+				print(f"   ❌ Error parsing release data for {repo_release_url}: {e}")
 				return {}
 
-
-def process_zip_payload(repo_url: str, release_info: dict, headers: dict) -> dict:
+def copy_payload_to_pages(source_path: str, dest_path: str) -> bool:
 		"""
-		Process a ZIP file: download, extract, and prepare for upload.
-		
-		Args:
-				repo_url: GitHub repository URL
-				release_info: Release information from fetch_release_info()
-				headers: Request headers
-		
-		Returns:
-				Dictionary with processed payload info, or empty dict if failed
-		"""
-		try:
-				zip_url = release_info["zip_url"]
-				zip_filename = release_info["zip_filename"]
-				version = release_info["version"]
-				
-				print(f"   📦 Processing ZIP file: {zip_filename}")
-				
-				# Download ZIP
-				temp_zip_path = os.path.join(tempfile.gettempdir(), zip_filename)
-				print(f"   ⬇️  Downloading ZIP...")
-				
-				if not download_file(zip_url, temp_zip_path, headers):
-						print(f"   ❌ Failed to download ZIP")
-						cleanup_file_or_dir(temp_zip_path)
-						return {}
-				
-				# Extract and find payload
-				print(f"   📦 Extracting ZIP...")
-				temp_extracted_zip_files_dir = None
-				payload_filename = None
-				try:
-						# Create temporary directory
-						temp_extracted_zip_files_dir = tempfile.mkdtemp()
-				
-						# Extract ZIP
-						with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
-								zip_ref.extractall(temp_extracted_zip_files_dir)
-				
-						# Search for payload in extracted content
-						payload_info = find_payload_in_directory(temp_extracted_zip_files_dir)
-				
-						if payload_info:
-								payload_filename = payload_info["filename"]
-						else:
-								print(f"   ❌ No payload found in ZIP")
-								return {}
-				
-				except zipfile.BadZipFile:
-						print(f"   ❌ BadZipFile exception occured while extracting zip")
-						# Clean up temporary Zip file and extracted Zip files
-						cleanup_file_or_dir(temp_zip_path)
-						cleanup_file_or_dir(temp_extracted_zip_files_dir)
-						return {}
-				except Exception as e:
-						print(f"   ❌ exception occured while extracting zip: {e}")
-						# Clean up temporary Zip file and extracted Zip files
-						cleanup_file_or_dir(temp_zip_path)
-						cleanup_file_or_dir(temp_extracted_zip_files_dir)
-						return {}
-
-				# Copy to GitHub Pages
-				print(f"   📤 Uploading to GitHub Pages...")
-				if not copy_payload_to_pages(temp_extracted_zip_files_dir, payload_filename):
-						print(f"   ❌ Failed to copy payload, skipping this update")
-						# Clean up temporary Zip file and extracted Zip files
-						cleanup_file_or_dir(temp_zip_path)
-						cleanup_file_or_dir(temp_extracted_zip_files_dir)
-						return {}
-
-				# Commit and push
-				if not git_commit_and_push(payload_filename):
-						print(f"   ❌ Failed to commit, skipping this update")
-						# Clean up temporary Zip file and extracted Zip files
-						cleanup_file_or_dir(temp_zip_path)
-						cleanup_file_or_dir(temp_extracted_zip_files_dir)
-						return {}
-				
-				# Clean up temporary Zip file and extracted Zip files
-				cleanup_file_or_dir(temp_zip_path)
-				cleanup_file_or_dir(temp_extracted_zip_files_dir)
-				
-				print(f"   ✅ Found payload: {payload_filename}")
-				return {
-						"version": version,
-						"type": "zip",
-						"filename": payload_filename
-				}
-		
-		except Exception as e:
-				print(f"   ❌ Error processing ZIP: {e}")
-				return {}
-
-
-def copy_payload_to_pages(source_path: str, filename: str) -> bool:
-		"""
-		Copy extracted payload to GitHub Pages directory.
+		Copy extracted payload to /payloads directory.
 		
 		Args:
 				source_path: Full path to the extracted payload
-				filename: Filename to use in GitHub Pages
+				dest_path: Full destination path for the payload to be copied to
 		
 		Returns:
 				True if successful, False otherwise
@@ -292,7 +197,6 @@ def copy_payload_to_pages(source_path: str, filename: str) -> bool:
 						print(f"   📁 Created directory: {PAYLOADS_DIR}")
 				
 				# Copy file to payloads directory
-				dest_path = os.path.join(PAYLOADS_DIR, filename)
 				shutil.copy2(source_path, dest_path)
 				print(f"   ✓ Copied to: {dest_path}")
 				return True
@@ -324,7 +228,7 @@ def git_commit_and_push(filename: str) -> bool:
 						return True
 				
 				# Commit
-				subprocess.run(["git", "commit", "-m", f"chore: add extracted payload {filename}"],
+				subprocess.run(["git", "commit", "-m", f"chore: add payload {filename}"],
 											check=True, capture_output=True)
 				# Push
 				subprocess.run(["git", "push"], check=True, capture_output=True)
@@ -345,6 +249,7 @@ def load_payloads_json(path: str) -> dict:
 		try:
 				with open(path, 'r') as f:
 						return json.load(f)
+
 		except FileNotFoundError:
 				print(f"❌ Error: {path} not found")
 				sys.exit(1)
@@ -359,6 +264,7 @@ def save_payloads_json(data: dict, path: str) -> None:
 				with open(path, 'w') as f:
 						json.dump(data, f, indent=2)
 				print(f"✅ Successfully saved {path}")
+
 		except IOError as e:
 				print(f"❌ Error writing to {path}: {e}")
 				sys.exit(1)
@@ -394,13 +300,15 @@ def main():
 		release_infos = []
 		updates_needed = []
 		
+		# repo: GitHub repository in format "owner/repo"
 		for i, repo in enumerate(REPOS):
 				if i >= len(payloads):
 						print(f"⚠️  Skipping {repo}: not enough payloads in payloads.json")
 						continue
-				
+
 				print(f"\n📦 Checking {repo}...")
-				release_info = fetch_release_info(repo, headers)
+				repo_release_url = f"https://api.github.com/repos/{repo}/releases"
+				release_info = fetch_release_info(repo_release_url, headers)
 				
 				if not release_info:
 						print(f"   ⏭️  No suitable release found")
@@ -411,7 +319,6 @@ def main():
 				print(f"   ✓ Latest version: {version}")
 				
 				old_version = payloads[i].get("version", "unknown")
-				
 				if old_version == version:
 						print(f"   ✓ Already up-to-date (v{old_version})")
 						release_infos.append(None)
@@ -455,31 +362,136 @@ def main():
 				
 				# Process based on release type
 				if release_info["type"] == "direct":
-						# Direct payload file
 						print(f"   ✓ Direct payload file found")
-						payloads[i]["version"] = new_version
-						payloads[i]["filename"] = release_info["filename"]
-						payloads[i]["url"] = release_info["url"]
-						print(f"   ✅ Updated: {release_info['filename']}")
-				
-				elif release_info["type"] == "zip":
-						# ZIP file - extract and process
-						print(f"   Processing ZIP payload...")
-						processed = process_zip_payload(repo, release_info, headers)
-						
-						if not processed:
-								print(f"   ❌ Failed to process ZIP, skipping this update")
+
+						# check first if the payload has already existing version in /payloads directory
+						payload_filename = Path(release_info["filename"])
+						to_save_payload_directory = Path(PAYLOADS_DIR)
+						for file in to_save_payload_directory.iterdir():
+								if file.name.startswith(payload_filename.stem.lower()):
+										cleanup_file_or_dir(file)
+										print(f"Existing old version of the payload has been deleted from /{PAYLOADS_DIR} directory")
+										break
+
+						# download payload file to my custom repository /payloads directory
+						to_save_payload_filename = f"{payload_filename.stem.lower()}_{new_version}{payload_filename.suffix}"
+						to_save_payload_path = os.path.join(to_save_payload_directory, to_save_payload_filename)
+						payload_url = release_info["url"]
+						print(f"   ⬇️  Downloading (Payload type: direct) to save path({to_save_payload_path})...")
+						if not download_file(payload_url, to_save_payload_path, headers):
+								print(f"   ❌ Failed to download (Payload type: direct), skipping this update")
 								continue
-						
-						filename = processed["filename"]
-						
+
+						# Commit and push
+						if not git_commit_and_push(to_save_payload_filename):
+								print(f"   ❌ Failed to commit, skipping this update")
+								continue
+
 						# Update payloads.json
-						github_pages_url = f"https://khan-fayyaz.github.io/custom-payloads/payloads/{filename}"
-						payloads[i]["version"] = new_version
-						payloads[i]["filename"] = filename
+						github_pages_url = f"https://khan-fayyaz.github.io/custom-payloads/payloads/{to_save_payload_filename}"
+						release_date = release_info["release_date"]
+						payloads[i]["name"] = payload_filename.stem.lower()
+						payloads[i]["filename"] = to_save_payload_filename
 						payloads[i]["url"] = github_pages_url
-						print(f"   ✅ Updated: {filename}")
-		
+						payloads[i]["source_direct"] = payload_url
+						payloads[i]["last_update"] = release_date
+						payloads[i]["version"] = new_version
+						print(f"   ✅ Updated: {to_save_payload_filename}")
+
+				elif release_info["type"] == "zip":
+						print(f"   Processing ZIP payload...")
+
+						zip_url = release_info["zip_url"]
+						zip_filename = release_info["zip_filename"]
+						print(f"   📦 Processing ZIP file: {zip_filename}")
+						temp_zip_path = None
+						try:
+								# Download ZIP
+								temp_zip_path = os.path.join(tempfile.gettempdir(), zip_filename)
+								print(f"   ⬇️  Downloading ZIP...")
+
+								if not download_file(zip_url, temp_zip_path, headers):
+										print(f"   ❌ Failed to download ZIP")
+										cleanup_file_or_dir(temp_zip_path)
+										continue
+
+						except Exception as e:
+								print(f"   ❌ Error processing ZIP: {e}")
+								cleanup_file_or_dir(temp_zip_path)
+								continue
+								
+						# Extract and find payload
+						print(f"   📦 Extracting ZIP...")
+						temp_extracted_zip_files_dir = None
+						try:
+								# Create temporary directory
+								temp_extracted_zip_files_dir = tempfile.mkdtemp()
+
+								# Extract ZIP
+								with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
+										zip_ref.extractall(temp_extracted_zip_files_dir)
+
+						except zipfile.BadZipFile:
+								print(f"   ❌ BadZipFile exception occured while extracting zip")
+								cleanup_file_or_dir(temp_zip_path)
+								cleanup_file_or_dir(temp_extracted_zip_files_dir)
+								continue
+						except Exception as e:
+								print(f"   ❌ exception occured while extracting zip: {e}")
+								cleanup_file_or_dir(temp_zip_path)
+								cleanup_file_or_dir(temp_extracted_zip_files_dir)
+								continue
+
+						# Clean up temporary Zip file
+						cleanup_file_or_dir(temp_zip_path)
+						
+						# Search for payload in extracted content
+						payload_info = find_payload_in_directory(temp_extracted_zip_files_dir)
+				
+						if not payload_info:
+								print(f"   ❌ No payload found in ZIP")
+								cleanup_file_or_dir(temp_extracted_zip_files_dir)
+								continue
+
+						# check first if the payload has already existing version in /payloads directory
+						payload_filename = Path(payload_info["filename"])
+						payload_path = payload_info["full_path"]
+						to_save_payload_directory = Path(PAYLOADS_DIR)
+						for file in to_save_payload_directory.iterdir():
+								if file.name.startswith(payload_filename.stem.lower()):
+										cleanup_file_or_dir(file)
+										print(f"Existing old version of the payload has been deleted from /{PAYLOADS_DIR} directory")
+										break
+						
+						# copy payload file to my custom repository /payloads directory
+						to_save_payload_filename = f"{payload_filename.stem.lower()}_{new_version}{payload_filename.suffix}"
+						to_save_payload_path = os.path.join(to_save_payload_directory, to_save_payload_filename)
+						print(f"   ⬇️  Copying (Payload type: extracted from zip) to save path({to_save_payload_path})...")
+						if not copy_payload_to_pages(payload_path, to_save_payload_path):
+								print(f"   ❌ Failed to copy payload, skipping this update")
+								cleanup_file_or_dir(temp_extracted_zip_files_dir)
+								continue
+
+						# Clean up temporary extracted Zip files
+						cleanup_file_or_dir(temp_extracted_zip_files_dir)
+						
+						# Commit and push
+						if not git_commit_and_push(to_save_payload_filename):
+								print(f"   ❌ Failed to commit, skipping this update")
+								continue
+
+						# Update payloads.json
+						github_pages_url = f"https://khan-fayyaz.github.io/custom-payloads/payloads/{to_save_payload_filename}"
+						release_date = release_info["release_date"]
+						payload_url = release_info["url"]
+						payloads[i]["name"] = payload_filename.stem.lower()
+						payloads[i]["filename"] = to_save_payload_filename
+						payloads[i]["url"] = github_pages_url
+						payloads[i]["source_direct"] = payload_url
+						payloads[i]["last_update"] = release_date
+						payloads[i]["version"] = new_version
+						print(f"   ✅ Updated: {to_save_payload_filename}")
+					
 		# ==========================================
 		# PHASE 3: SAVE CHANGES
 		# ==========================================
