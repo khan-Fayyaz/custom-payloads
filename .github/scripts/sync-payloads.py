@@ -483,7 +483,7 @@ def main():
 						# Update payloads.json
 						github_pages_url = f"https://khan-fayyaz.github.io/custom-payloads/payloads/{to_save_payload_filename}"
 						release_date = release_info["release_date"]
-						payload_url = release_info["url"]
+						payload_url = release_info["zip_url"]
 						payloads[i]["name"] = payload_filename.stem.lower()
 						payloads[i]["filename"] = to_save_payload_filename
 						payloads[i]["url"] = github_pages_url
