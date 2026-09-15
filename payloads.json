@@ -2,34 +2,34 @@
   "name": "my custom payloads",
   "payloads": [
     {
-      "name": "shadowmount-plus",
-      "filename": "shadowmountplus.elf",
-      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/shadowmountplus.elf",
-			"source": "https://github.com/drakmor/ShadowMountPlus/releases",
-			"source_direct": "",
+      "name": "shadowmountplus",
+      "filename": "shadowmountplus_1.7alpha13fix1.elf",
+      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/shadowmountplus_1.7alpha13fix1.elf",
+      "source": "https://github.com/drakmor/ShadowMountPlus/releases",
+      "source_direct": "https://github.com/drakmor/ShadowMountPlus/releases/download/1.7alpha13fix1/ShadowMountPlus_1.7alpha13fix1.zip",
       "description": "automated background auto-mounter payload for ps5 games",
-			"last_update": "",
-      "version": "1.7alpha12"
+      "last_update": "2026-09-04",
+      "version": "1.7alpha13fix1"
     },
     {
-      "name": "kstuff-lite-drakmor",
-      "filename": "kstuff.elf",
-      "url": "https://github.com/drakmor/kstuff-lite/releases/download/1.2-dr-test2/kstuff.elf",
-			"source": "https://github.com/drakmor/kstuff-lite/releases",
-			"source_direct": "",
+      "name": "kstuff",
+      "filename": "kstuff_1.2-dr-test2.elf",
+      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/kstuff_1.2-dr-test2.elf",
+      "source": "https://github.com/drakmor/kstuff-lite/releases",
+      "source_direct": "https://github.com/drakmor/kstuff-lite/releases/download/1.2-dr-test2/kstuff.elf",
       "description": "ps4/ps5 applications enabler by drakmor",
-			"last_update": "",
-      "version": "1.2-dr-test1"
+      "last_update": "2026-06-11",
+      "version": "1.2-dr-test2"
     },
     {
-      "name": "onion-hen",
-      "filename": "OnionHEN.elf",
-      "url": "https://github.com/aydencharles/onionHEN/releases/download/v0.0.12/OnionHEN.elf",
-			"source": "https://github.com/aydencharles/onionHEN/releases",
-			"source_direct": "",
+      "name": "onionhen",
+      "filename": "onionhen_v0.0.13.elf",
+      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/onionhen_v0.0.13.elf",
+      "source": "https://github.com/aydencharles/onionHEN/releases",
+      "source_direct": "https://github.com/aydencharles/onionHEN/releases/download/v0.0.13/OnionHEN.elf",
       "description": "Yet another HEN enabler for jailbroken PS5",
-			"last_update": "",
-      "version": "v0.0.11"
+      "last_update": "2026-09-11",
+      "version": "v0.0.13"
     }
   ]
 }
