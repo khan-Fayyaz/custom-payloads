@@ -455,7 +455,7 @@ def main():
 
 						# check first if the payload has already existing version in /payloads directory
 						payload_filename = Path(payload_info["filename"])
-						payload_path = payload_info["full_path"]
+						payload_path = payload_info["file_path"]
 						to_save_payload_directory = Path(PAYLOADS_DIR)
 						for file in to_save_payload_directory.iterdir():
 								if file.name.startswith(payload_filename.stem.lower()):
