@@ -320,7 +320,7 @@ def main():
 				
 				old_version = payloads[i].get("version", "unknown")
 				if old_version == version:
-						print(f"   ✓ Already up-to-date (v{old_version})")
+						print(f"   ✓ Already up-to-date ({old_version})")
 						release_infos.append(None)
 				else:
 						print(f"   ⬆️  Update available: {old_version} → {version}")
