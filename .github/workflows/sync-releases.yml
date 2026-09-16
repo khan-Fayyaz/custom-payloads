@@ -1,9 +1,10 @@
+---
 name: Sync Upstream Payloads
 
-on:
+'on':
   schedule:
     - cron: '0 */6 * * *'
-  workflow_dispatch:
+  workflow_dispatch: {}
 
 jobs:
   sync-payloads:
@@ -13,17 +14,25 @@ jobs:
 
     steps:
       - name: Checkout custom-payloads repo
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
           python-version: '3.x'
 
+      - name: Cache pip
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pip
+          key: ${{ runner.os }}-pip-${{ hashFiles('**/requirements.txt') }}
+          restore-keys: |
+            ${{ runner.os }}-pip-
+
       - name: Install Python dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install requests
+          pip install -r requirements.txt
 
       - name: Configure Git
         run: |
@@ -38,7 +47,7 @@ jobs:
       - name: Commit and push payloads.json if changed
         run: |
           git add payloads.json
-          
+
           if git diff --cached --quiet; then
             echo "No changes to payloads.json"
           else
