@@ -23,13 +23,13 @@
     },
     {
       "name": "onionhen",
-      "filename": "onionhen_v0.9.0-beta1.elf",
-      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/onionhen_v0.9.0-beta1.elf",
+      "filename": "onionhen_v0.9.0-beta2.elf",
+      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/onionhen_v0.9.0-beta2.elf",
       "source": "https://github.com/aydencharles/onionHEN/releases",
-      "source_direct": "https://github.com/aydencharles/onionHEN/releases/download/v0.9.0-beta1/OnionHEN.elf",
+      "source_direct": "https://github.com/aydencharles/onionHEN/releases/download/v0.9.0-beta2/OnionHEN.elf",
       "description": "Yet another HEN enabler for jailbroken PS5",
-      "last_update": "2026-10-03",
-      "version": "v0.9.0-beta1"
+      "last_update": "2026-10-07",
+      "version": "v0.9.0-beta2"
     }
   ]
 }
