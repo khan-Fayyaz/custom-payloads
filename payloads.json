@@ -9,7 +9,7 @@
       "source_direct": "https://github.com/drakmor/ShadowMountPlus/releases/download/1.7beta5/shadowmountplus.elf",
       "description": "automated background auto-mounter payload for ps5 games",
       "last_update": "2026-10-10",
-      "version": "1.7beta4"
+      "version": "1.7beta5"
     },
     {
       "name": "kstuff",
@@ -29,7 +29,7 @@
       "source_direct": "https://github.com/aydencharles/onionHEN/releases/download/v0.9.0/OnionHEN.elf",
       "description": "Yet another HEN enabler for jailbroken PS5",
       "last_update": "2026-10-15",
-      "version": "v0.9.0-beta2"
+      "version": "v0.9.0"
     }
   ]
 }
