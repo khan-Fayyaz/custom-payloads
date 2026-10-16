@@ -373,7 +373,6 @@ def main():
 								if file.name.startswith(payload_filename.stem.lower()):
 										cleanup_file_or_dir(file)
 										print(f"Existing old version of the payload has been deleted from /{PAYLOADS_DIR} directory")
-										break
 
 						# download payload file to my custom repository /payloads directory
 						to_save_payload_filename = f"{payload_filename.stem.lower()}_{new_version}{payload_filename.suffix}"
@@ -463,7 +462,6 @@ def main():
 								if file.name.startswith(payload_filename.stem.lower()):
 										cleanup_file_or_dir(file)
 										print(f"Existing old version of the payload has been deleted from /{PAYLOADS_DIR} directory")
-										break
 						
 						# copy payload file to my custom repository /payloads directory
 						to_save_payload_filename = f"{payload_filename.stem.lower()}_{new_version}{payload_filename.suffix}"
