@@ -210,7 +210,7 @@ def copy_payload_to_pages(source_path: str, dest_path: str) -> bool:
 
 def git_commit_and_push(filename: str) -> bool:
 		"""
-		Commit and push the new payload file to Git.
+		Commit and push the new payload file and any deletions in /payloads.
 		
 		Args:
 				filename: Name of the file that was added
@@ -219,23 +219,32 @@ def git_commit_and_push(filename: str) -> bool:
 				True if successful, False otherwise
 		"""
 		try:
-				payload_path = os.path.join(PAYLOADS_DIR, filename)
-				
-				# Stage the file
-				subprocess.run(["git", "add", payload_path], check=True, capture_output=True)
-				# Check if there are changes to commit
-				result = subprocess.run(["git", "diff", "--cached", "--quiet"], capture_output=True)
+				payload_dir = Path(PAYLOADS_DIR)
+
+				# Stage additions, modifications, and deletions inside the payloads dir
+				subprocess.run(
+				    ["git", "add", "-A", str(payload_dir)],
+				    check=True,
+				    capture_output=True
+				)
+
+				# Detect whether there are any staged changes
+				result = subprocess.run(
+				    ["git", "diff", "--cached", "--quiet"],
+				    capture_output=True
+				)
 				if result.returncode == 0:
-						print(f"   ℹ️  File already committed")
+						print(f"   ℹ️  No payload changes to commit")
 						return True
 				
-				# Commit
-				subprocess.run(["git", "commit", "-m", f"chore: add payload {filename}"],
-											check=True, capture_output=True)
-				# Push
+				subprocess.run(
+				    ["git", "commit", "-m", f"chore: sync payload {filename}"],
+				    check=True,
+				    capture_output=True
+				)
 				subprocess.run(["git", "push"], check=True, capture_output=True)
 
-				print(f"   ✅ Committed and pushed: {filename}")
+				print(f"   ✅ Committed and pushed payload updates")
 				return True
 		
 		except subprocess.CalledProcessError as e:
