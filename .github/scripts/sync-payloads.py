@@ -41,8 +41,10 @@ def cleanup_file_or_dir(path: str | Path | None) -> None:
 						if path.exists():
 								if path.is_file():
 										os.remove(path)
+										print(f"File {path.name} has been deleted")
 								elif path.is_dir():
 										shutil.rmtree(path)
+										print(f"Directory {path.name} has been deleted")
 				except Exception as e:
 						print(f"Cleanup failed: {e}")
 
