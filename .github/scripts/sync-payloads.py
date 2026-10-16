@@ -33,18 +33,34 @@ PAYLOADS_DIR = "payloads"
 GITHUB_TOKEN = os.getenv("GITHUB_TOKEN")
 
 
-def cleanup_file_or_dir(path: str | Path | None) -> None:
+def cleanup_file_or_dir(path: str | Path) -> None:
+		if not isinstance(path, Path):		
+				path = Path(path)
+		
+		try:
+				if path.is_file():
+						os.remove(path)
+						print(f"File '{path.name}' has been deleted\n")
+				elif path.is_dir():
+						shutil.rmtree(path)
+						print(f"Directory '/{path.name}' has been deleted\n")
+		except Exception as e:
+				print(f"Cleanup failed: {e}")
+
+
+def cleanup_file_or_dir_with_check(path: str | Path | None) -> None:
 		if path:
 				if not isinstance(path, Path):		
 						path = Path(path)
+				
 				try:
 						if path.exists():
 								if path.is_file():
 										os.remove(path)
-										print(f"File {path.name} has been deleted")
+										print(f"File '{path.name}' has been deleted\n")
 								elif path.is_dir():
 										shutil.rmtree(path)
-										print(f"Directory {path.name} has been deleted")
+										print(f"Directory '/{path.name}' has been deleted\n")
 				except Exception as e:
 						print(f"Cleanup failed: {e}")
 
@@ -381,7 +397,7 @@ def main():
 						for file in to_save_payload_directory.iterdir():
 								if file.name.startswith(payload_filename.stem.lower()):
 										cleanup_file_or_dir(file)
-										print(f"Existing old version of the payload has been deleted from /{PAYLOADS_DIR} directory")
+										break
 
 						# download payload file to my custom repository /payloads directory
 						to_save_payload_filename = f"{payload_filename.stem.lower()}_{new_version}{payload_filename.suffix}"
@@ -427,7 +443,7 @@ def main():
 
 						except Exception as e:
 								print(f"   ❌ Error processing ZIP: {e}")
-								cleanup_file_or_dir(temp_zip_path)
+								cleanup_file_or_dir_with_check(temp_zip_path)
 								continue
 								
 						# Extract and find payload
@@ -441,15 +457,10 @@ def main():
 								with zipfile.ZipFile(temp_zip_path, 'r') as zip_ref:
 										zip_ref.extractall(temp_extracted_zip_files_dir)
 
-						except zipfile.BadZipFile:
-								print(f"   ❌ BadZipFile exception occured while extracting zip")
-								cleanup_file_or_dir(temp_zip_path)
-								cleanup_file_or_dir(temp_extracted_zip_files_dir)
-								continue
 						except Exception as e:
 								print(f"   ❌ exception occured while extracting zip: {e}")
-								cleanup_file_or_dir(temp_zip_path)
-								cleanup_file_or_dir(temp_extracted_zip_files_dir)
+								cleanup_file_or_dir_with_check(temp_zip_path)
+								cleanup_file_or_dir_with_check(temp_extracted_zip_files_dir)
 								continue
 
 						# Clean up temporary Zip file
@@ -457,7 +468,6 @@ def main():
 						
 						# Search for payload in extracted content
 						payload_info = find_payload_in_directory(temp_extracted_zip_files_dir)
-				
 						if not payload_info:
 								print(f"   ❌ No payload found in ZIP")
 								cleanup_file_or_dir(temp_extracted_zip_files_dir)
@@ -465,16 +475,16 @@ def main():
 
 						# check first if the payload has already existing version in /payloads directory
 						payload_filename = Path(payload_info["filename"])
-						payload_path = payload_info["file_path"]
 						to_save_payload_directory = Path(PAYLOADS_DIR)
 						for file in to_save_payload_directory.iterdir():
 								if file.name.startswith(payload_filename.stem.lower()):
 										cleanup_file_or_dir(file)
-										print(f"Existing old version of the payload has been deleted from /{PAYLOADS_DIR} directory")
+										break
 						
 						# copy payload file to my custom repository /payloads directory
 						to_save_payload_filename = f"{payload_filename.stem.lower()}_{new_version}{payload_filename.suffix}"
 						to_save_payload_path = os.path.join(to_save_payload_directory, to_save_payload_filename)
+						payload_path = payload_info["file_path"]
 						print(f"   ⬇️  Copying (Payload type: extracted from zip) to save path({to_save_payload_path})...")
 						if not copy_payload_to_pages(payload_path, to_save_payload_path):
 								print(f"   ❌ Failed to copy payload, skipping this update")
