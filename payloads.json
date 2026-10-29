@@ -3,13 +3,13 @@
   "payloads": [
     {
       "name": "shadowmountplus",
-      "filename": "shadowmountplus_1.7beta10.elf",
-      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/shadowmountplus_1.7beta10.elf",
+      "filename": "shadowmountplus_1.7beta11.elf",
+      "url": "https://khan-fayyaz.github.io/custom-payloads/payloads/shadowmountplus_1.7beta11.elf",
       "source": "https://github.com/drakmor/ShadowMountPlus/releases",
-      "source_direct": "https://github.com/drakmor/ShadowMountPlus/releases/download/1.7beta10/shadowmountplus.elf",
+      "source_direct": "https://github.com/drakmor/ShadowMountPlus/releases/download/1.7beta11/shadowmountplus.elf",
       "description": "automated background auto-mounter payload for ps5 games",
-      "last_update": "2026-10-28",
-      "version": "1.7beta10"
+      "last_update": "2026-10-29",
+      "version": "1.7beta11"
     },
     {
       "name": "kstuff",
